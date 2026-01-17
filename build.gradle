@@ -1,16 +1,26 @@
 plugins {
     id 'java'
+    id 'maven-publish'
+    id 'com.gradleup.shadow' version '9.3.0'
 }
 
-group = 'net.echo'
-version = '1.0'
+allprojects {
+    repositories {
+        mavenCentral()
+        maven {
+            name = "brain4jReleases"
+            url = uri("https://repo.brain4j.org/releases")
+        }
+    }
+}
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'maven-publish'
+    apply plugin: 'com.gradleup.shadow'
 
-    repositories {
-        mavenCentral()
-    }
+    group = 'net.echo'
+    version = '1.0'
 
     dependencies {
         implementation "org.ow2.asm:asm:9.8"
@@ -24,5 +34,44 @@ subprojects {
 
         sourceCompatibility = JavaVersion.VERSION_25
         targetCompatibility = JavaVersion.VERSION_25
+    }
+
+    tasks.shadowJar {
+        archiveClassifier.set("")
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+    }
+
+    publishing {
+        repositories {
+            maven {
+                name = "hypermixins"
+
+                def releasesRepo = uri("https://repo.brain4j.org/releases")
+                def snapshotsRepo = uri("https://repo.brain4j.org/snapshots")
+
+                url = version.endsWith("SNAPSHOT") ? snapshotsRepo : releasesRepo
+
+                credentials {
+                    username = findProperty("BRAIN4J_USERNAME")
+                    password = findProperty("BRAIN4J_TOKEN")
+                }
+
+                authentication {
+                    basic(BasicAuthentication)
+                }
+            }
+        }
+
+        publications {
+            maven(MavenPublication) {
+                from components.shadow
+                groupId = project.group
+                artifactId = project.name
+                version = project.version
+            }
+        }
     }
 }
