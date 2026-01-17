@@ -5,7 +5,6 @@ plugins {
 
 dependencies {
     compileOnly files('./run/test-world-1.0.jar')
-    implementation(project(':hypermixins-agent'))
     implementation(project(':hypermixins-api'))
 }
 

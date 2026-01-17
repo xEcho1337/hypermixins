@@ -1,6 +1,7 @@
 package net.echo.hypermixins;
 
-import net.echo.hypermixins.transformer.MixinTransformer;
+import net.echo.hypermixins.agent.MixinMapping;
+import net.echo.hypermixins.agent.MixinTransformer;
 
 import java.lang.instrument.Instrumentation;
 import java.util.ArrayList;
@@ -20,18 +21,9 @@ public class HyperMixins {
             }
             
             MixinTransformer transformer = new MixinTransformer(mappings);
-            inst.addTransformer(transformer, true);
             
-            // Transforms all the already-loaded classes
-            for (Class<?> loaded : inst.getAllLoadedClasses()) {
-                if (!inst.isModifiableClass(loaded)) continue;
-                
-                for (MixinMapping mapping : mappings) {
-                    if (loaded == mapping.targetClass) {
-                        inst.retransformClasses(loaded);
-                    }
-                }
-            }
+            inst.addTransformer(transformer, true);
+            inst.retransformClasses(mixinClasses);
         } catch (Exception ex) {
             throw new RuntimeException(ex);
         }

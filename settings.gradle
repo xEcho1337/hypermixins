@@ -1,4 +1,3 @@
 rootProject.name = 'hypermixins'
-include 'hypermixins-agent'
 include 'hypermixins-api'
 include 'hypermixins-example'

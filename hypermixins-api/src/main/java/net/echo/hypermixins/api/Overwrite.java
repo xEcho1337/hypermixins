@@ -1,4 +1,4 @@
-package net.echo.hypermixins;
+package net.echo.hypermixins.api;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
