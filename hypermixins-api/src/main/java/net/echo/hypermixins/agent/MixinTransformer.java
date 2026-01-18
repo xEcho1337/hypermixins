@@ -147,7 +147,14 @@ public class MixinTransformer implements ClassFileTransformer {
             applyOverwrite(node, method, overwrite, mixinField, originals);
         }
         
-        node.methods.addAll(originals);
+        for (MethodNode orig : originals) {
+            boolean exists = node.methods.stream()
+                .anyMatch(m -> m.name.equals(orig.name) && Objects.equals(m.desc, orig.desc));
+            
+            if (!exists) {
+                node.methods.add(orig);
+            }
+        }
         
         ClassWriter writer = new ClassWriter(
             ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS
