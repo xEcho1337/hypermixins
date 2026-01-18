@@ -300,36 +300,31 @@ public class MixinTransformer implements ClassFileTransformer {
             if (!method.name.equals(redirect.targetMethod())) continue;
             
             int invokeIndex = 0;
-            
+
             for (AbstractInsnNode insn = method.instructions.getFirst();
                  insn != null;
                  insn = insn.getNext()) {
-                
+
                 if (!(insn instanceof MethodInsnNode mi)) continue;
                 
-                if (mi.getOpcode() != Opcodes.INVOKESTATIC) {
-                    // remove receiver
-                    InsnList pop = new InsnList();
-                    pop.add(new InsnNode(Opcodes.POP));
-                    method.instructions.insertBefore(mi, pop);
-                }
-                
                 String invokeSig = mi.owner + "." + mi.name + mi.desc;
-                
+
                 // check the signature is the one we are searching for
                 if (!invokeSig.equals(redirect.invokeDesc())) continue;
+
+                if (mi.getOpcode() != Opcodes.INVOKESTATIC) continue;
                 
                 // check the call index is the one we are searching for
                 if (invokeIndex++ != redirect.index()) continue;
-                
+
                 Method handler = redirect.handler();
-                
+
+                String owner = Type.getInternalName(handler.getDeclaringClass());
+                String callName = handler.getName();
+                String descriptor = Type.getMethodDescriptor(handler);
+
                 MethodInsnNode replacement = new MethodInsnNode(
-                    Opcodes.INVOKESTATIC,
-                    Type.getInternalName(handler.getDeclaringClass()),
-                    handler.getName(),
-                    Type.getMethodDescriptor(handler),
-                    false
+                    Opcodes.INVOKESTATIC, owner, callName, descriptor, false
                 );
                 
                 method.instructions.set(mi, replacement);
