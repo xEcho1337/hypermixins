@@ -1,5 +1,6 @@
 package net.echo.hypermixins.agent;
 
+import net.echo.hypermixins.api.Call;
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.*;
 
@@ -300,36 +301,74 @@ public class MixinTransformer implements ClassFileTransformer {
             if (!method.name.equals(redirect.targetMethod())) continue;
             
             int invokeIndex = 0;
-
+            
             for (AbstractInsnNode insn = method.instructions.getFirst();
                  insn != null;
                  insn = insn.getNext()) {
-
+                
                 if (!(insn instanceof MethodInsnNode mi)) continue;
                 
                 String invokeSig = mi.owner + "." + mi.name + mi.desc;
-
-                // check the signature is the one we are searching for
-                if (!invokeSig.equals(redirect.invokeDesc())) continue;
-
-                if (mi.getOpcode() != Opcodes.INVOKESTATIC) continue;
                 
-                // check the call index is the one we are searching for
-                if (invokeIndex++ != redirect.index()) continue;
-
+                if (!invokeSig.equals(redirect.invokeDesc())) continue; // check the signature
+                if (invokeIndex++ != redirect.index()) continue; // check the call index
+                
+                Call expected = getCall(redirect, mi);
+                
                 Method handler = redirect.handler();
-
-                String owner = Type.getInternalName(handler.getDeclaringClass());
-                String callName = handler.getName();
-                String descriptor = Type.getMethodDescriptor(handler);
-
+                
+                Type[] originalArgs = Type.getArgumentTypes(mi.desc);
+                Type originalReturn = Type.getReturnType(mi.desc);
+                
+                Type[] handlerArgs = Type.getArgumentTypes(Type.getMethodDescriptor(handler));
+                Type handlerReturn = Type.getReturnType(Type.getMethodDescriptor(handler));
+                
+                if (!handlerReturn.equals(originalReturn)) {
+                    throw new IllegalStateException("Return type mismatch in redirect handler");
+                }
+                
+                int expectedHandlerArgs = expected == Call.INVOKESTATIC
+                    ? originalArgs.length
+                    : originalArgs.length + 1;
+                
+                if (handlerArgs.length != expectedHandlerArgs) {
+                    throw new IllegalStateException("Argument count mismatch in redirect handler");
+                }
+                
+                if (expected == Call.INVOKEVIRTUAL) {
+                    Type receiver = Type.getObjectType(mi.owner);
+                    if (!handlerArgs[0].equals(receiver)) {
+                        throw new IllegalStateException("First handler argument must be receiver type");
+                    }
+                }
+                
                 MethodInsnNode replacement = new MethodInsnNode(
-                    Opcodes.INVOKESTATIC, owner, callName, descriptor, false
+                    Opcodes.INVOKESTATIC,
+                    Type.getInternalName(handler.getDeclaringClass()),
+                    handler.getName(),
+                    Type.getMethodDescriptor(handler),
+                    false
                 );
                 
                 method.instructions.set(mi, replacement);
                 break;
             }
         }
+    }
+    
+    private static Call getCall(RedirectMapping redirect, MethodInsnNode mi) {
+        Call expected = redirect.call();
+        
+        if (expected == Call.INVOKESTATIC && mi.getOpcode() != Opcodes.INVOKESTATIC) {
+            throw new IllegalStateException("Expected INVOKESTATIC but found " + mi.getOpcode());
+        }
+        
+        if (expected == Call.INVOKEVIRTUAL) {
+            if (mi.getOpcode() != Opcodes.INVOKEVIRTUAL && mi.getOpcode() != Opcodes.INVOKEINTERFACE) {
+                throw new IllegalStateException("Expected INVOKEVIRTUAL/INTERFACE but found " + mi.getOpcode());
+            }
+        }
+        
+        return expected;
     }
 }

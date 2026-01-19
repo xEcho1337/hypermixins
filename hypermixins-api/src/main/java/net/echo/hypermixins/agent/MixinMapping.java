@@ -133,6 +133,7 @@ public class MixinMapping {
             redirect.method(),
             at.desc(),
             at.index(),
+            at.call(),
             method
         ));
     }
